@@ -1,0 +1,49 @@
+Procedure backup
+	Lparameters sufix, dir, is_sql
+	Local monaday
+	Wait Window 'Tworzê backup katalogu "' + Upper(Alltrim(dir)) + '"...' Nowait 
+	
+	Monday = Date() - Dow(Date(), 1) + 2
+
+	If Alltrim(sufix) = 'auto'
+		backupDir = Alltrim(appPath) + '\BACKUPS\' + Alltrim(dir) + '_' + Transform(Year(Monday)) + '-' + Padl(Transform(Month(Monday)),2,'0') + '-' + Padl(Transform(Day(Monday)),2,'0') + '_' + Alltrim(sufix)	
+		If !Directory(Alltrim(backupDir))  and Date() => Monday
+			execute(Alltrim(dir), backupDir, is_sql)
+		Endif
+	Else
+		backupDir = Alltrim(appPath) + '\BACKUPS\' + Alltrim(dir) + '_' + Transform(Year(Date())) + '-' + Padl(Transform(Month(Date())),2,'0') + '-' + Padl(Transform(Day(Date())),2,'0') + '_' + Alltrim(sufix)
+		backupDir = backupDir + '_[' + Alltrim(Chrtran(Transform(Time()), '\/:.', '')) + ']'
+		execute(Alltrim(dir), backupDir, is_sql)
+	EndIf
+	Wait Clear
+Endproc
+
+Procedure execute
+	Lparameters sourcedir, backupDir, is_sql
+	Set Safety Off
+
+	If !Directory(Alltrim(backupDir))
+		Mkdir Alltrim(backupDir)
+	Endif
+	If is_sql
+		sCommand =  '"c:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe" -u root -pzwcd0 simple_wms > "' + Alltrim(backupDir) + '\backup.sql"' 
+		*Run sCommand
+		MessageBox(sCommand)
+		objShell = Createobject("WScript.Shell")
+		objShell.Run(sCommand, 1, .T.)
+		objShell = .Null.	
+	else 
+		If Adir(atbl, Alltrim(appPath) + '\' + Alltrim(sourcedir) + '\*.*') > 0
+			Asort(atbl)	
+			For i=1 To Alen(atbl,1)
+				bfile=atbl[i,1]
+				fbaza= Alltrim(appPath) + '\' + Alltrim(sourcedir) + '\' + Allt(bfile)
+				Try
+					Copy File Alltrim(fbaza) To Alltrim(backupDir) + '\' + Alltrim(Justfname(bfile))
+				Catch To err
+				Endtry
+			Endfor
+		EndIf 
+	EndIf 
+	Set Safety On
+Endproc

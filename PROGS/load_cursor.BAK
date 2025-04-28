@@ -1,0 +1,83 @@
+Procedure load_cursor
+	Lparameters Table
+	Local Cursor, currrec
+	
+	Wait Window 'Aktualizacja stanów magazynowych...' Nowait
+
+	Cursor = 'a' + Alltrim(Table)
+	currrec = 0
+	MessageBox('1')
+	If Used(Table)
+		Select (Table)
+		Use
+	Endif
+	MessageBox('2')
+	If Used(Cursor)
+		Select (Cursor)
+		currrec = Recno(Cursor)
+		Use
+	Endif
+	MessageBox('3')
+*!*		nStatus = 0
+*!*		nTimes = 0
+*!*		Do While nStatus = 0 and nTimes < 5000
+*!*			Try
+*!*				Select * From 'DATA\' + (Table) + '.dbf' Where !Deleted() Into Cursor (Cursor) Readwrite
+*!*				Select (Cursor)
+*!*				nStatus = 1
+*!*			Catch To loTrapMsg
+*!*			Endtry
+*!*			nTimes = nTimes + 1
+*!*		EndDo
+
+	Do progs/qsql with 'select * from ' + (Table), 'simple_wms', (Cursor)
+	MessageBox('4')
+	If Used((Cursor))
+		If Alltrim(Upper(Table)) == 'PROJECTS'
+			Select aprojects
+			replace all p_status with Strtran(p_status, 'Zako?czony', 'Zakoñczony') 
+		EndIf 
+		MessageBox('5')
+		If Alltrim(Upper(Table)) == '_MAIN'
+			nStatus = 0
+			nTimes = 0
+			Do While nStatus = 0 and nTimes < 5000
+				Try
+					Update a_main Set a_main.io_marker = 'Przyjêcie' Where a_main.in_out = 1
+					Update a_main Set a_main.io_marker = 'Wydanie' Where a_main.in_out = 0
+					Update a_main Set a_main.Name = materials.m_name From a_main inner Join 'DATA\materials' On a_main.name_id = materials.m_id
+					Update a_main Set a_main.Weight = materials.m_weight From a_main inner Join 'DATA\materials' On a_main.name_id = materials.m_id
+					Select materials
+					Use 
+					Update a_main Set a_main.unit_type = units.u_name From a_main inner Join 'DATA\units' On a_main.u_type_id = units.u_id
+					Update a_main Set a_main.pack_type = units.u_name From a_main inner Join 'DATA\units' On a_main.p_type_id = units.u_id
+					Select units
+					Use 
+					Update a_main Set a_main.Project = projects.p_name From a_main inner Join 'DATA\projects' On a_main.project_id = projects.p_id
+					Select projects
+					Use 
+					Update a_main Set a_main.client = clients.c_name From a_main inner Join 'DATA\clients' On a_main.client_id = clients.c_id
+					Update a_main Set a_main.carrier = clients.c_name From a_main inner Join 'DATA\clients' On a_main.carrier_id = clients.c_id
+					Select clients
+					Use 
+					nStatus = 1
+				Catch To loTrapMsg
+				Endtry
+				nTimes = nTimes + 1
+			EndDo
+		Endif
+		MessageBox('6')
+		If Used(Table)
+			Select (Table)
+			Use
+		EndIf
+		MessageBox('7')
+		Select (Cursor) 
+	Else 
+		MessageBox('Niespodziewany blad. Uruchom ponownie program...')
+		Clear Events 
+		On Shutdown 
+		Quit 
+	EndIf 
+Wait clear 
+Endproc
